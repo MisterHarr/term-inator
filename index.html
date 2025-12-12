@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Term-inator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.6.0/confetti.browser.min.js"></script>
+    <style>
+        /* Base Reset */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+        }
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background: #333; 
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background 1s ease;
+        }
+
+        /* Animated Gradients */
+        .bg-school {
+            background: linear-gradient(-45deg, #4facfe, #00f2fe, #43e97b, #38f9d7);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+
+        .bg-holiday {
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .timer-card {
+            background: white;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .timer-card:hover {
+            transform: scale(1.05) rotate(1deg);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.5s ease;
+        }
+        .status-school {
+            background-color: #fef08a; /* Yellow-200 */
+            color: #854d0e; /* Yellow-800 */
+        }
+        .status-holiday {
+            background-color: #bbf7d0; /* Green-200 */
+            color: #14532d; /* Green-900 */
+        }
+
+        .floating-item {
+            position: absolute;
+            opacity: 0.4;
+            animation: float 8s ease-in-out infinite;
+            user-select: none;
+            z-index: -1;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(10deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+
+        .number-change {
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        /* Fullscreen button hover */
+        .btn-hover:hover {
+            transform: scale(1.1);
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body id="body-bg" class="flex flex-col items-center justify-center text-white relative w-full h-full">
+
+    <!-- Background Elements Container -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div id="bg-icons" class="w-full h-full relative">
+            <!-- Icons injected by JS -->
+        </div>
+    </div>
+
+    <!-- Fullscreen Toggle Button -->
+    <button onclick="toggleFullScreen()" class="absolute top-4 right-4 z-50 p-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white transition-all btn-hover" title="Toggle Fullscreen">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+        </svg>
+    </button>
+
+    <main class="glass-panel p-6 md:p-12 lg:p-16 xl:p-20 rounded-3xl text-center w-[90%] max-w-7xl mx-auto z-10 flex flex-col items-center justify-center min-h-[50vh] transition-all duration-500">
+        
+        <div id="status-badge" class="status-badge status-school text-sm md:text-base lg:text-xl">
+            Checking Schedule...
+        </div>
+
+        <h2 class="text-lg md:text-2xl lg:text-3xl font-bold uppercase tracking-widest text-white/80 mb-2">Counting down to</h2>
+        
+        <h1 id="event-name" class="text-3xl md:text-5xl lg:text-7xl xl:text-8xl font-bold mb-4 drop-shadow-md text-white min-h-[1.2em] leading-tight">
+            ...
+        </h1>
+        
+        <p id="event-date-display" class="text-lg md:text-xl lg:text-3xl opacity-90 mb-8 md:mb-12 font-semibold text-white/90">
+            ...
+        </p>
+
+        <div id="timer-container" class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 lg:gap-10 w-full">
+            <!-- Days -->
+            <div class="timer-card rounded-2xl p-4 lg:p-8 flex flex-col items-center justify-center text-gray-800 aspect-[4/3] md:aspect-square">
+                <span id="days" class="text-4xl md:text-6xl lg:text-8xl xl:text-9xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-purple-500 to-indigo-600">00</span>
+                <span class="text-xs md:text-sm lg:text-xl font-bold text-gray-400 uppercase tracking-widest mt-2 lg:mt-4">Days</span>
+            </div>
+            <!-- Hours -->
+            <div class="timer-card rounded-2xl p-4 lg:p-8 flex flex-col items-center justify-center text-gray-800 aspect-[4/3] md:aspect-square">
+                <span id="hours" class="text-4xl md:text-6xl lg:text-8xl xl:text-9xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-pink-500 to-rose-600">00</span>
+                <span class="text-xs md:text-sm lg:text-xl font-bold text-gray-400 uppercase tracking-widest mt-2 lg:mt-4">Hours</span>
+            </div>
+            <!-- Minutes -->
+            <div class="timer-card rounded-2xl p-4 lg:p-8 flex flex-col items-center justify-center text-gray-800 aspect-[4/3] md:aspect-square">
+                <span id="minutes" class="text-4xl md:text-6xl lg:text-8xl xl:text-9xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-red-500">00</span>
+                <span class="text-xs md:text-sm lg:text-xl font-bold text-gray-400 uppercase tracking-widest mt-2 lg:mt-4">Minutes</span>
+            </div>
+            <!-- Seconds -->
+            <div class="timer-card rounded-2xl p-4 lg:p-8 flex flex-col items-center justify-center text-gray-800 aspect-[4/3] md:aspect-square">
+                <span id="seconds" class="text-4xl md:text-6xl lg:text-8xl xl:text-9xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-green-400 to-emerald-600">00</span>
+                <span class="text-xs md:text-sm lg:text-xl font-bold text-gray-400 uppercase tracking-widest mt-2 lg:mt-4">Seconds</span>
+            </div>
+        </div>
+
+        <div id="message" class="hidden flex-col items-center justify-center mt-8 space-y-4">
+            <h2 class="text-4xl md:text-6xl lg:text-8xl font-bold text-yellow-300 drop-shadow-lg animate-bounce">It's Time! 🎉</h2>
+        </div>
+    </main>
+
+    <footer class="absolute bottom-4 text-white/70 text-xs md:text-sm font-semibold z-10">
+        Timezone: Asia/Kuala_Lumpur (GMT+8)
+    </footer>
+
+    <script>
+        // ==========================================
+        //  USER CONFIGURATION: GIS SCHEDULE 2025/2026
+        // ==========================================
+        const schedule = [
+            { date: "2025-12-12T11:30:00", name: "Term 1 Holiday Start", type: 'start' },
+            { date: "2026-01-05T07:00:00", name: "Term 2 Begins", type: 'end' },
+            { date: "2026-01-30T15:00:00", name: "FT Day/Thaipusam Break", type: 'start' },
+            { date: "2026-02-04T07:00:00", name: "Back to School", type: 'end' },
+            { date: "2026-02-13T15:00:00", name: "Mid-Term Break (CNY)", type: 'start' },
+            { date: "2026-02-23T07:00:00", name: "Back to School", type: 'end' },
+            { date: "2026-03-20T15:00:00", name: "Hari Raya Break", type: 'start' },
+            { date: "2026-03-24T07:00:00", name: "Back to School", type: 'end' },
+            { date: "2026-04-03T11:30:00", name: "Term 2 Holidays", type: 'start' },
+            { date: "2026-04-20T07:00:00", name: "Term 3 Begins", type: 'end' },
+            { date: "2026-04-30T15:00:00", name: "Labour Day Break", type: 'start' },
+            { date: "2026-05-05T07:00:00", name: "Back to School", type: 'end' },
+            { date: "2026-05-29T15:00:00", name: "Agong's Birthday Break", type: 'start' },
+            { date: "2026-06-03T07:00:00", name: "Back to School", type: 'end' },
+            { date: "2026-06-16T15:00:00", name: "Awal Muharram Break", type: 'start' },
+            { date: "2026-06-18T07:00:00", name: "Back to School", type: 'end' },
+            { date: "2026-06-26T11:30:00", name: "Summer Holidays", type: 'start' },
+            { date: "2026-08-13T07:00:00", name: "New Academic Year", type: 'end' }
+        ];
+
+        // ==========================================
+        //  ARRAYS FOR DIFFERENT MODES
+        // ==========================================
+        const schoolIcons = ['📚', '✏️', '🏫', '🎒', '🚌', '📝', '🧠', '📏', '💻'];
+        const holidayIcons = ['🎉', '🏖️', '🎮', '🛌', '🍕', '🌞', '✈️', '🍦', '🚲'];
+
+        // ==========================================
+        //  LOGIC START
+        // ==========================================
+
+        const els = {
+            body: document.getElementById('body-bg'),
+            eventName: document.getElementById('event-name'),
+            eventDateDisplay: document.getElementById('event-date-display'),
+            statusBadge: document.getElementById('status-badge'),
+            bgIcons: document.getElementById('bg-icons'),
+            days: document.getElementById('days'),
+            hours: document.getElementById('hours'),
+            minutes: document.getElementById('minutes'),
+            seconds: document.getElementById('seconds'),
+            timerContainer: document.getElementById('timer-container'),
+            message: document.getElementById('message')
+        };
+
+        let currentMode = null; 
+        let currentTarget = null;
+        let confettiLaunched = false;
+
+        function updateTheme(mode) {
+            if (currentMode === mode) return; 
+            currentMode = mode;
+            
+            // 1. Update Background Gradient
+            if (mode === 'school') {
+                els.body.className = "flex flex-col items-center justify-center text-white relative w-full h-full bg-school";
+                els.statusBadge.className = 'status-badge status-school text-sm md:text-base lg:text-xl';
+                els.statusBadge.textContent = 'Time Until Sleep 😴';
+                els.eventName.className = "text-3xl md:text-5xl lg:text-7xl xl:text-8xl font-bold mb-4 drop-shadow-md text-white min-h-[1.2em] leading-tight";
+            } else {
+                els.body.className = "flex flex-col items-center justify-center text-white relative w-full h-full bg-holiday";
+                els.statusBadge.className = 'status-badge status-holiday text-sm md:text-base lg:text-xl';
+                els.statusBadge.textContent = 'T-Minus to Term Launch 🚀';
+                els.eventName.className = "text-3xl md:text-5xl lg:text-7xl xl:text-8xl font-bold mb-4 drop-shadow-md text-yellow-200 min-h-[1.2em] leading-tight";
+            }
+
+            // 2. Update Floating Icons
+            els.bgIcons.innerHTML = ''; // Clear old
+            const icons = mode === 'school' ? schoolIcons : holidayIcons;
+            
+            // Create 12 random floating icons
+            for (let i = 0; i < 12; i++) {
+                const div = document.createElement('div');
+                div.className = 'floating-item';
+                div.textContent = icons[Math.floor(Math.random() * icons.length)];
+                div.style.left = Math.random() * 95 + '%';
+                div.style.top = Math.random() * 95 + '%';
+                div.style.animationDelay = (Math.random() * 5) + 's';
+                const size = Math.random() * 3 + 2; // 2rem to 5rem
+                div.style.fontSize = size + 'rem';
+                els.bgIcons.appendChild(div);
+            }
+        }
+
+        function determineTarget() {
+            const now = new Date();
+            const mytString = now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' });
+            const mytDate = new Date(mytString);
+            const nowTime = mytDate.getTime();
+
+            for (let i = 0; i < schedule.length; i++) {
+                const event = schedule[i];
+                // Parsing target date manually to avoid timezone issues
+                const parts = event.date.split(/[-T:]/);
+                // Note: month is 0-indexed in JS Date constructor
+                const targetAsLocal = new Date(parts[0], parts[1]-1, parts[2], parts[3], parts[4], parts[5]);
+                
+                if (nowTime < targetAsLocal.getTime()) {
+                    const mode = event.type === 'start' ? 'school' : 'holiday';
+                    return {
+                        mode: mode,
+                        targetDate: targetAsLocal,
+                        title: event.name,
+                        displayDate: targetAsLocal.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute:'2-digit' })
+                    };
+                }
+            }
+
+            return {
+                mode: 'holiday',
+                targetDate: new Date(nowTime + 86400000 * 30),
+                title: "Academic Year Complete!",
+                displayDate: "See you next year"
+            };
+        }
+
+        function updateTimer() {
+            const nowUTC = new Date();
+            const mytString = nowUTC.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false });
+            const nowMYT = new Date(mytString);
+
+            if (!currentTarget || currentTarget.targetDate < nowMYT) {
+                const data = determineTarget();
+                currentTarget = data;
+                
+                els.eventName.textContent = data.title;
+                els.eventDateDisplay.textContent = data.displayDate;
+                
+                updateTheme(data.mode);
+                
+                confettiLaunched = false;
+                els.message.classList.add('hidden');
+                els.timerContainer.classList.remove('hidden');
+            }
+
+            let diff = currentTarget.targetDate - nowMYT;
+
+            if (diff <= 0) {
+                diff = 0;
+                if (!confettiLaunched) {
+                    launchConfetti();
+                    confettiLaunched = true;
+                    // Check again soon
+                    setTimeout(() => { currentTarget = null; }, 5000);
+                }
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            updateDisplay(els.days, days);
+            updateDisplay(els.hours, hours);
+            updateDisplay(els.minutes, minutes);
+            updateDisplay(els.seconds, seconds);
+        }
+
+        function updateDisplay(el, value) {
+            const strVal = value < 10 ? '0' + value : value;
+            if (el.innerText !== strVal.toString()) {
+                el.innerText = strVal;
+                el.classList.remove('number-change');
+                void el.offsetWidth;
+                el.classList.add('number-change');
+            }
+        }
+
+        function launchConfetti() {
+            var duration = 3000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+            var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) return clearInterval(interval);
+                var particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: Math.random(), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+
+        // Fullscreen Toggle
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch((e) => {
+                    console.log("Fullscreen not allowed", e);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        updateTimer();
+        setInterval(updateTimer, 1000);
+
+    </script>
+</body>
+</html>
